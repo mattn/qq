@@ -36,9 +36,20 @@ func lines2rows(lines []string) [][]string {
 	cr := []rune(lines[0])
 	w := 0
 
-	li := 0
 	rows := make([][]string, len(lines))
-	for i := 0; i < len(cr); i++ {
+	i := 0
+
+skip_white:
+	for ; i < len(cr); i++ {
+		for _, line := range lines {
+			if !unicode.IsSpace(rune(line[i])) {
+				break skip_white
+			}
+		}
+	}
+	li := i
+
+	for ; i < len(cr); i++ {
 		r := cr[i]
 		w += runewidth.RuneWidth(r)
 		last := i == len(cr)-1
