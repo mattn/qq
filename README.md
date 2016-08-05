@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/mattn/qq.svg?branch=master)](https://travis-ci.org/mattn/qq)
 
+[![Coverage Status](https://coveralls.io/repos/github/mattn/qq/badge.svg?branch=master)](https://coveralls.io/github/mattn/qq?branch=master)
+
 Select stdin with query.
 
 ## Usage
