@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"database/sql"
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -18,13 +19,14 @@ import (
 )
 
 var (
-	noheader  = flag.Bool("nh", false, "don't treat first line as header")
-	outheader = flag.Bool("oh", false, "output header line")
-	inputcsv  = flag.Bool("ic", false, "input csv")
-	inputtsv  = flag.Bool("it", false, "input tsv")
-	inputpat  = flag.String("ip", "", "input delimiter pattern as regexp")
-	enc       = flag.String("e", "", "encoding of input stream")
-	query     = flag.String("q", "", "select query")
+	noheader   = flag.Bool("nh", false, "don't treat first line as header")
+	outheader  = flag.Bool("oh", false, "output header line")
+	inputcsv   = flag.Bool("ic", false, "input csv")
+	inputtsv   = flag.Bool("it", false, "input tsv")
+	inputpat   = flag.String("ip", "", "input delimiter pattern as regexp")
+	outputjson = flag.Bool("oj", false, "output json")
+	enc        = flag.String("e", "", "encoding of input stream")
+	query      = flag.String("q", "", "select query")
 
 	renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
 )
@@ -289,7 +291,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	err = csv.NewWriter(os.Stdout).WriteAll(rows)
+
+	if *outputjson {
+		err = json.NewEncoder(os.Stdout).Encode(rows)
+	} else {
+		err = csv.NewWriter(os.Stdout).WriteAll(rows)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
