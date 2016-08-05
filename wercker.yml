@@ -1,4 +1,4 @@
-box: motemen/golang-goxc
+box: golang
 build:
   steps:
     - setup-go-workspace
