@@ -25,6 +25,7 @@ var (
 	inputtsv   = flag.Bool("it", false, "input tsv")
 	inputpat   = flag.String("ip", "", "input delimiter pattern as regexp")
 	outputjson = flag.Bool("oj", false, "output json")
+	outputraw  = flag.Bool("or", false, "output raw")
 	enc        = flag.String("e", "", "encoding of input stream")
 	query      = flag.String("q", "", "select query")
 
@@ -294,6 +295,16 @@ func main() {
 
 	if *outputjson {
 		err = json.NewEncoder(os.Stdout).Encode(rows)
+	} else if *outputraw {
+		for _, row := range rows {
+			for c, col := range row {
+				if c > 0 {
+					fmt.Print("\t")
+				}
+				fmt.Print(col)
+			}
+			fmt.Println()
+		}
 	} else {
 		err = csv.NewWriter(os.Stdout).WriteAll(rows)
 	}
