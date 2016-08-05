@@ -14,6 +14,8 @@ import (
 	"strings"
 	"unicode"
 
+	xenc "golang.org/x/text/encoding"
+
 	"github.com/mattn/go-encoding"
 	"github.com/mattn/go-runewidth"
 	_ "github.com/mattn/go-sqlite3"
@@ -188,7 +190,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	} else {
 		cn = rows[0]
 	}
-	s := `create table "` + strings.Replace(name, `'`, `\'`, -1) + `"(`
+	s := `create table '` + strings.Replace(name, `'`, `\'`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += `,`
@@ -201,7 +203,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		return err
 	}
 
-	s = `insert into "` + strings.Replace(name, `'`, `\'`, -1) + `"(`
+	s = `insert into '` + strings.Replace(name, `'`, `\'`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += `,`
@@ -292,14 +294,9 @@ func (qq *QQ) Close() error {
 func main() {
 	flag.Parse()
 
-	var stdin io.Reader = os.Stdin
-	if *enc != "" {
-		ee := encoding.GetEncoding(*enc)
-		if ee == nil {
-			fmt.Fprintln(os.Stderr, "invalid encoding name:", *enc)
-			os.Exit(1)
-		}
-		stdin = ee.NewDecoder().Reader(stdin)
+	if *query == "" {
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	qq, err := NewQQ()
@@ -308,23 +305,43 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = qq.Import(stdin, "stdin")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	var ee xenc.Encoding
+	if *enc != "" {
+		ee := encoding.GetEncoding(*enc)
+		if ee == nil {
+			fmt.Fprintln(os.Stderr, "invalid encoding name:", *enc)
+			os.Exit(1)
+		}
 	}
 
 	for _, fn := range flag.Args() {
-		fb := filepath.Base(fn)
-		f, err := os.Open(fn)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		err = qq.Import(f, fb)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if fn == "-" {
+			var stdin io.Reader = os.Stdin
+			if ee != nil {
+				stdin = ee.NewDecoder().Reader(stdin)
+			}
+			err = qq.Import(stdin, "stdin")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		} else {
+			fb := filepath.Base(fn)
+			f, err := os.Open(fn)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			var file io.Reader = f
+			if ee != nil {
+				file = ee.NewDecoder().Reader(file)
+			}
+			err = qq.Import(f, fb)
+			f.Close()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		}
 	}
 
