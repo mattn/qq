@@ -22,7 +22,7 @@ var (
 	outheader = flag.Bool("oh", false, "output header line")
 	inputcsv  = flag.Bool("ic", false, "input csv")
 	inputtsv  = flag.Bool("it", false, "input tsv")
-	inputpat  = flag.String("ip", "", "input pattern as regexp")
+	inputpat  = flag.String("ip", "", "input delimiter pattern as regexp")
 	enc       = flag.String("e", "", "encoding of input stream")
 	query     = flag.String("q", "", "select query")
 
