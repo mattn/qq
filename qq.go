@@ -151,7 +151,7 @@ func main() {
 		} else {
 			cn = rows[0]
 		}
-		s := `create table "-"(`
+		s := `create table "stdin"(`
 		for i, n := range cn {
 			if i > 0 {
 				s += `,`
@@ -162,7 +162,7 @@ func main() {
 		_, err = db.Exec(s)
 		fatalIf(err)
 
-		s = `insert into "-"(`
+		s = `insert into "stdin"(`
 		for i, n := range cn {
 			if i > 0 {
 				s += `,`
