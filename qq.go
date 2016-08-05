@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
@@ -125,156 +126,167 @@ skip_white:
 	return rows
 }
 
-func qq(stdin io.Reader) ([][]string, error) {
+type QQ struct {
+	db *sql.DB
+}
+
+func NewQQ() (*QQ, error) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		return nil, err
+	}
+	return &QQ{db}, nil
+}
+
+func (qq *QQ) Import(r io.Reader, name string) error {
 	var rows [][]string
 	var err error
 
 	if *inputcsv {
-		rows, err = csv.NewReader(stdin).ReadAll()
+		rows, err = csv.NewReader(r).ReadAll()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	} else if *inputtsv {
-		csv := csv.NewReader(stdin)
+		csv := csv.NewReader(r)
 		csv.Comma = '\t'
 		rows, err = csv.ReadAll()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	} else if *inputpat != "" {
-		lines, err := readLines(stdin)
+		lines, err := readLines(r)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if len(lines) == 0 {
-			return nil, nil
+			return nil
 		}
 		re, err := regexp.Compile(*inputpat)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, line := range lines {
 			rows = append(rows, re.Split(line, -1))
 		}
 	} else {
-		lines, err := readLines(stdin)
+		lines, err := readLines(r)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if len(lines) == 0 {
-			return nil, nil
+			return nil
 		}
 		rows = lines2rows(lines)
 	}
 
-	if *query != "" {
-		db, err := sql.Open("sqlite3", ":memory:")
-		if err != nil {
-			return nil, err
+	var cn []string
+	if *noheader {
+		for i := 0; i < len(rows[0]); i++ {
+			cn = append(cn, fmt.Sprintf(`f%d`, i+1))
 		}
-		defer db.Close()
+	} else {
+		cn = rows[0]
+	}
+	s := `create table "` + strings.Replace(name, `'`, `\'`, -1) + `"(`
+	for i, n := range cn {
+		if i > 0 {
+			s += `,`
+		}
+		s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
+	}
+	s += `)`
+	_, err = qq.db.Exec(s)
+	if err != nil {
+		return err
+	}
 
-		var cn []string
-		if *noheader {
-			for i := 0; i < len(rows[0]); i++ {
-				cn = append(cn, fmt.Sprintf(`f%d`, i+1))
-			}
-		} else {
-			cn = rows[0]
+	s = `insert into "` + strings.Replace(name, `'`, `\'`, -1) + `"(`
+	for i, n := range cn {
+		if i > 0 {
+			s += `,`
 		}
-		s := `create table "stdin"(`
-		for i, n := range cn {
+		s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
+	}
+	s += `) values`
+	d := ``
+	for rid, row := range rows {
+		if rid == 0 && !*noheader {
+			continue
+		}
+		if d != `` {
+			d += `,`
+		}
+		d += `(`
+		for i, col := range row {
+			if i >= len(cn) {
+				break
+			}
 			if i > 0 {
-				s += `,`
-			}
-			s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
-		}
-		s += `)`
-		_, err = db.Exec(s)
-		if err != nil {
-			return nil, err
-		}
-
-		s = `insert into "stdin"(`
-		for i, n := range cn {
-			if i > 0 {
-				s += `,`
-			}
-			s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
-		}
-		s += `) values`
-		d := ``
-		for r, row := range rows {
-			if r == 0 && !*noheader {
-				continue
-			}
-			if d != `` {
 				d += `,`
 			}
-			d += `(`
-			for i, col := range row {
-				if i >= len(cn) {
-					break
-				}
-				if i > 0 {
-					d += `,`
-				}
-				if renum.MatchString(col) {
-					d += col
-				} else {
-					d += `'` + strings.Replace(col, `'`, `\'`, -1) + `'`
-				}
+			if renum.MatchString(col) {
+				d += col
+			} else {
+				d += `'` + strings.Replace(col, `'`, `\'`, -1) + `'`
 			}
-			d += `)`
 		}
-		_, err = db.Exec(s + d)
+		d += `)`
+	}
+	_, err = qq.db.Exec(s + d)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (qq *QQ) Query(query string) ([][]string, error) {
+	qrows, err := qq.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer qrows.Close()
+
+	cols, err := qrows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	rows := [][]string{}
+	if *outheader {
+		rows = append(rows, cols)
+	}
+
+	values := make([]interface{}, len(cols))
+	ptrs := make([]interface{}, len(cols))
+	for i, _ := range cols {
+		ptrs[i] = &values[i]
+	}
+	for qrows.Next() {
+		err = qrows.Scan(ptrs...)
 		if err != nil {
 			return nil, err
 		}
 
-		qrows, err := db.Query(*query)
-		if err != nil {
-			return nil, err
-		}
-		defer qrows.Close()
-
-		cols, err := qrows.Columns()
-		if err != nil {
-			return nil, err
-		}
-
-		rows = [][]string{}
-		if *outheader {
-			rows = append(rows, cols)
-		}
-
-		values := make([]interface{}, len(cols))
-		ptrs := make([]interface{}, len(cols))
-		for i, _ := range cols {
-			ptrs[i] = &values[i]
-		}
-		for qrows.Next() {
-			err = qrows.Scan(ptrs...)
-			if err != nil {
-				return nil, err
+		cells := []string{}
+		for _, val := range values {
+			b, ok := val.([]byte)
+			var v string
+			if ok {
+				v = string(b)
+			} else {
+				v = fmt.Sprint(val)
 			}
-
-			cells := []string{}
-			for _, val := range values {
-				b, ok := val.([]byte)
-				var v string
-				if ok {
-					v = string(b)
-				} else {
-					v = fmt.Sprint(val)
-				}
-				cells = append(cells, v)
-			}
-			rows = append(rows, cells)
+			cells = append(cells, v)
 		}
+		rows = append(rows, cells)
 	}
 
 	return rows, nil
+}
+
+func (qq *QQ) Close() error {
+	return qq.db.Close()
 }
 
 func main() {
@@ -290,7 +302,33 @@ func main() {
 		stdin = ee.NewDecoder().Reader(stdin)
 	}
 
-	rows, err := qq(stdin)
+	qq, err := NewQQ()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	err = qq.Import(stdin, "stdin")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	for _, fn := range flag.Args() {
+		fb := filepath.Base(fn)
+		f, err := os.Open(fn)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		err = qq.Import(f, fb)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+
+	rows, err := qq.Query(*query)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

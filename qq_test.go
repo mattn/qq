@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -110,6 +111,24 @@ func TestLines2Rows(t *testing.T) {
 	}
 }
 
+func test(r io.Reader, name string) ([][]string, error) {
+	qq, err := NewQQ()
+	if err != nil {
+		return nil, err
+	}
+
+	err = qq.Import(r, "stdin")
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := qq.Query(*query)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 func TestQQ(t *testing.T) {
 	input := `
 PID command
@@ -117,7 +136,7 @@ PID command
   2 /usr/bin/grep
 `
 	*query = "select pid from stdin"
-	rows, err := qq(strings.NewReader(input))
+	rows, err := test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +158,7 @@ PID command
 	}
 
 	*query = "select command from stdin where pid = 2"
-	rows, err = qq(strings.NewReader(input))
+	rows, err = test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +178,7 @@ PID,command
 	*inputtsv = false
 	*inputpat = ""
 	*query = "select pid from stdin"
-	rows, err := qq(strings.NewReader(input))
+	rows, err := test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +200,7 @@ PID,command
 	}
 
 	*query = "select command from stdin where pid = 2"
-	rows, err = qq(strings.NewReader(input))
+	rows, err = test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +217,7 @@ func TestInputTSV(t *testing.T) {
 	*inputtsv = true
 	*inputpat = ""
 	*query = "select pid from stdin"
-	rows, err := qq(strings.NewReader(input))
+	rows, err := test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +239,7 @@ func TestInputTSV(t *testing.T) {
 	}
 
 	*query = "select command from stdin where pid = 2"
-	rows, err = qq(strings.NewReader(input))
+	rows, err = test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +256,7 @@ func TestInputPat(t *testing.T) {
 	*inputtsv = false
 	*inputpat = `#`
 	*query = "select pid from stdin"
-	rows, err := qq(strings.NewReader(input))
+	rows, err := test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +278,7 @@ func TestInputPat(t *testing.T) {
 	}
 
 	*query = "select command from stdin where pid = 2"
-	rows, err = qq(strings.NewReader(input))
+	rows, err = test(strings.NewReader(input), "stdin")
 	if err != nil {
 		t.Fatal(err)
 	}
