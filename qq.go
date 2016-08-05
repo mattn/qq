@@ -213,6 +213,9 @@ func qq(stdin io.Reader) ([][]string, error) {
 			}
 			d += `(`
 			for i, col := range row {
+				if i >= len(cn) {
+					break
+				}
 				if i > 0 {
 					d += `,`
 				}
