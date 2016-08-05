@@ -46,6 +46,7 @@ skip_white:
 				break skip_white
 			}
 		}
+		w++
 	}
 	li := i
 
@@ -83,9 +84,9 @@ skip_white:
 				}
 
 				for ; i < len(cr); i++ {
-					cr := runewidth.RuneWidth(r)
+					cw := runewidth.RuneWidth(r)
 					for _, line := range lines {
-						pr := []rune(runewidth.Truncate(line, w+cr, ""))
+						pr := []rune(runewidth.Truncate(line, w+cw, ""))
 						if !unicode.IsSpace(pr[len(pr)-1]) {
 							part = true
 							break
@@ -94,7 +95,7 @@ skip_white:
 					if part {
 						break
 					}
-					w += cr
+					w += cw
 				}
 
 				li = i
