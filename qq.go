@@ -120,7 +120,7 @@ func main() {
 	var err error
 
 	if *inputcsv {
-		rows, err = csv.NewReader(os.Stdin).ReadAll()
+		rows, err = csv.NewReader(stdin).ReadAll()
 		fatalIf(err)
 	} else {
 		b, err := ioutil.ReadAll(stdin)

@@ -5,7 +5,7 @@ Select stdin with query.
 ## Usage
 
 ```
-$ ps | qq -q "select pid from '-'"
+$ ps | qq -q "select pid from stdin"
 9324
 16344
 13824
