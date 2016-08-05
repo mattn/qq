@@ -25,6 +25,8 @@ var (
 	inputpat  = flag.String("ip", "", "input pattern as regexp")
 	enc       = flag.String("e", "", "encoding of input stream")
 	query     = flag.String("q", "", "select query")
+
+	renum = regexp.MustCompile(`^[+-]?[0-9]+(\.[0-9]+)?(e-?[0-9]+)?`)
 )
 
 func readLines(r io.Reader) ([]string, error) {
@@ -211,7 +213,11 @@ func qq(stdin io.Reader) ([][]string, error) {
 				if i > 0 {
 					d += `,`
 				}
-				d += `'` + strings.Replace(col, `'`, `\'`, -1) + `'`
+				if renum.MatchString(col) {
+					d += col
+				} else {
+					d += `'` + strings.Replace(col, `'`, `\'`, -1) + `'`
+				}
 			}
 			d += `)`
 		}

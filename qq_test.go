@@ -138,7 +138,7 @@ PID command
 		t.Fatalf("second result should be 2: got %v", rows[0][0])
 	}
 
-	*query = "select command from stdin where pid = '2'"
+	*query = "select command from stdin where pid = 2"
 	rows, err = qq(strings.NewReader(input))
 	if err != nil {
 		t.Fatal(err)
