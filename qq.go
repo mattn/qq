@@ -26,7 +26,7 @@ var (
 	enc       = flag.String("e", "", "encoding of input stream")
 	query     = flag.String("q", "", "select query")
 
-	renum = regexp.MustCompile(`^[+-]?[0-9]+(\.[0-9]+)?(e-?[0-9]+)?$`)
+	renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
 )
 
 func readLines(r io.Reader) ([]string, error) {
