@@ -80,7 +80,11 @@ skip_white:
 					if ib >= len(lr) {
 						ib = len(lr) - 1
 					}
-					rows[ri] = append(rows[ri], strings.TrimSpace(string(lr[li:ib])))
+					fv := strings.TrimSpace(string(lr[li:ib]))
+					if ri == 0 && fv == "" && !*noheader {
+						fv = fmt.Sprintf("______f%d", ri+1)
+					}
+					rows[ri] = append(rows[ri], fv)
 				}
 
 				for ; i < len(cr); i++ {
