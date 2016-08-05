@@ -33,6 +33,7 @@ var (
 	query      = flag.String("q", "", "select query")
 
 	renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
+	ee    xenc.Encoding
 )
 
 func readLines(r io.Reader) ([]string, error) {
@@ -143,6 +144,10 @@ func NewQQ() (*QQ, error) {
 func (qq *QQ) Import(r io.Reader, name string) error {
 	var rows [][]string
 	var err error
+
+	if ee != nil {
+		r = ee.NewDecoder().Reader(r)
+	}
 
 	if *inputcsv {
 		rows, err = csv.NewReader(r).ReadAll()
@@ -305,9 +310,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	var ee xenc.Encoding
 	if *enc != "" {
-		ee := encoding.GetEncoding(*enc)
+		ee = encoding.GetEncoding(*enc)
 		if ee == nil {
 			fmt.Fprintln(os.Stderr, "invalid encoding name:", *enc)
 			os.Exit(1)
@@ -316,11 +320,7 @@ func main() {
 
 	for _, fn := range flag.Args() {
 		if fn == "-" {
-			var stdin io.Reader = os.Stdin
-			if ee != nil {
-				stdin = ee.NewDecoder().Reader(stdin)
-			}
-			err = qq.Import(stdin, "stdin")
+			err = qq.Import(os.Stdin, "stdin")
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
@@ -331,10 +331,6 @@ func main() {
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
-			}
-			var file io.Reader = f
-			if ee != nil {
-				file = ee.NewDecoder().Reader(file)
 			}
 			err = qq.Import(f, fb)
 			f.Close()
