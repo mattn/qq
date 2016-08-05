@@ -27,14 +27,6 @@ var (
 	query     = flag.String("q", "", "select query")
 )
 
-func fatalIf(err error) {
-	if err == nil {
-		return
-	}
-	fmt.Fprintln(os.Stderr, err)
-	os.Exit(1)
-}
-
 func readLines(r io.Reader) ([]string, error) {
 	var lines []string
 	scanner := bufio.NewScanner(r)
@@ -128,14 +120,12 @@ skip_white:
 	return rows
 }
 
-func main() {
-	flag.Parse()
-
+func qq() error {
 	var stdin io.Reader = os.Stdin
 	if *enc != "" {
 		ee := encoding.GetEncoding(*enc)
 		if ee == nil {
-			fatalIf(fmt.Errorf("invalid encoding name:", *enc))
+			return fmt.Errorf("invalid encoding name:", *enc)
 		}
 		stdin = ee.NewDecoder().Reader(stdin)
 	}
@@ -145,35 +135,47 @@ func main() {
 
 	if *inputcsv {
 		rows, err = csv.NewReader(stdin).ReadAll()
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 	} else if *inputtsv {
 		csv := csv.NewReader(stdin)
 		csv.Comma = '\t'
 		rows, err = csv.ReadAll()
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 	} else if *inputpat != "" {
 		lines, err := readLines(stdin)
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 		if len(lines) == 0 {
-			return
+			return nil
 		}
 		re, err := regexp.Compile(*inputpat)
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 		for _, line := range lines {
 			rows = append(rows, re.Split(line, -1))
 		}
 	} else {
 		lines, err := readLines(stdin)
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 		if len(lines) == 0 {
-			return
+			return nil
 		}
 		rows = lines2rows(lines)
 	}
 
 	if *query != "" {
 		db, err := sql.Open("sqlite3", ":memory:")
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 		defer db.Close()
 
 		var cn []string
@@ -193,7 +195,9 @@ func main() {
 		}
 		s += `)`
 		_, err = db.Exec(s)
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 
 		s = `insert into "stdin"(`
 		for i, n := range cn {
@@ -221,14 +225,20 @@ func main() {
 			d += `)`
 		}
 		_, err = db.Exec(s + d)
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 
 		qrows, err := db.Query(*query)
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 		defer qrows.Close()
 
 		cols, err := qrows.Columns()
-		fatalIf(err)
+		if err != nil {
+			return err
+		}
 
 		rows = [][]string{}
 
@@ -239,7 +249,9 @@ func main() {
 		}
 		for qrows.Next() {
 			err = qrows.Scan(ptrs...)
-			fatalIf(err)
+			if err != nil {
+				return err
+			}
 
 			cells := []string{}
 			for _, val := range values {
@@ -256,5 +268,14 @@ func main() {
 		}
 	}
 
-	csv.NewWriter(os.Stdout).WriteAll(rows)
+	return csv.NewWriter(os.Stdout).WriteAll(rows)
+}
+
+func main() {
+	flag.Parse()
+
+	if err := qq(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
