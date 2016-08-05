@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -20,6 +21,8 @@ var (
 	noheader  = flag.Bool("nh", false, "don't treat first line as header")
 	outheader = flag.Bool("oh", false, "output header line")
 	inputcsv  = flag.Bool("ic", false, "input csv")
+	inputtsv  = flag.Bool("it", false, "input tsv")
+	inputpat  = flag.String("ip", "", "input pattern as regexp")
 	enc       = flag.String("e", "", "encoding of input stream")
 	query     = flag.String("q", "", "select query")
 )
@@ -30,6 +33,19 @@ func fatalIf(err error) {
 	}
 	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
+}
+
+func readLines(r io.Reader) ([]string, error) {
+	var lines []string
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		lines = append(lines, line)
+	}
+	return lines, scanner.Err()
 }
 
 func lines2rows(lines []string) [][]string {
@@ -127,16 +143,25 @@ func main() {
 	if *inputcsv {
 		rows, err = csv.NewReader(stdin).ReadAll()
 		fatalIf(err)
-	} else {
-		b, err := ioutil.ReadAll(stdin)
+	} else if *inputtsv {
+		csv := csv.NewReader(stdin)
+		csv.Comma = '\t'
+		rows, err = csv.ReadAll()
 		fatalIf(err)
-
-		lines := []string{}
-		for _, line := range strings.Split(string(b), "\n") {
-			if strings.TrimSpace(line) != "" {
-				lines = append(lines, line)
-			}
+	} else if *inputpat != "" {
+		lines, err := readLines(stdin)
+		fatalIf(err)
+		if len(lines) == 0 {
+			return
 		}
+		re, err := regexp.Compile(*inputpat)
+		fatalIf(err)
+		for _, line := range lines {
+			rows = append(rows, re.Split(line, -1))
+		}
+	} else {
+		lines, err := readLines(stdin)
+		fatalIf(err)
 		if len(lines) == 0 {
 			return
 		}
