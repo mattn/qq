@@ -157,6 +157,7 @@ PID,command
 `
 	*inputcsv = true
 	*inputtsv = false
+	*inputpat = ""
 	*query = "select pid from stdin"
 	rows, err := qq(strings.NewReader(input))
 	if err != nil {
@@ -195,6 +196,46 @@ func TestInputTSV(t *testing.T) {
 
 	*inputcsv = false
 	*inputtsv = true
+	*inputpat = ""
+	*query = "select pid from stdin"
+	rows, err := qq(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rows) != 2 {
+		t.Fatalf("rows should have two row: got %v", rows)
+	}
+
+	if len(rows[0]) != 1 {
+		t.Fatalf("columns should have only one: got %v", rows[0])
+	}
+
+	if rows[0][0] != "1" {
+		t.Fatalf("first result should be 1: got %v", rows[0][0])
+	}
+
+	if rows[1][0] != "2" {
+		t.Fatalf("second result should be 2: got %v", rows[0][0])
+	}
+
+	*query = "select command from stdin where pid = 2"
+	rows, err = qq(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rows[0][0] != "/usr/bin/grep" {
+		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[0][0])
+	}
+}
+
+func TestInputPat(t *testing.T) {
+	input := "PID#command\n1#/usr/bin/ls\n2#/usr/bin/grep\n"
+
+	*inputcsv = false
+	*inputtsv = false
+	*inputpat = `#`
 	*query = "select pid from stdin"
 	rows, err := qq(strings.NewReader(input))
 	if err != nil {
