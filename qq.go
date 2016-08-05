@@ -120,42 +120,33 @@ skip_white:
 	return rows
 }
 
-func qq() error {
-	var stdin io.Reader = os.Stdin
-	if *enc != "" {
-		ee := encoding.GetEncoding(*enc)
-		if ee == nil {
-			return fmt.Errorf("invalid encoding name:", *enc)
-		}
-		stdin = ee.NewDecoder().Reader(stdin)
-	}
-
+func qq(stdin io.Reader) ([][]string, error) {
 	var rows [][]string
 	var err error
 
 	if *inputcsv {
 		rows, err = csv.NewReader(stdin).ReadAll()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else if *inputtsv {
 		csv := csv.NewReader(stdin)
 		csv.Comma = '\t'
 		rows, err = csv.ReadAll()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else if *inputpat != "" {
 		lines, err := readLines(stdin)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if len(lines) == 0 {
-			return nil
+			return nil, nil
 		}
 		re, err := regexp.Compile(*inputpat)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, line := range lines {
 			rows = append(rows, re.Split(line, -1))
@@ -163,10 +154,10 @@ func qq() error {
 	} else {
 		lines, err := readLines(stdin)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if len(lines) == 0 {
-			return nil
+			return nil, nil
 		}
 		rows = lines2rows(lines)
 	}
@@ -174,7 +165,7 @@ func qq() error {
 	if *query != "" {
 		db, err := sql.Open("sqlite3", ":memory:")
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer db.Close()
 
@@ -196,7 +187,7 @@ func qq() error {
 		s += `)`
 		_, err = db.Exec(s)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		s = `insert into "stdin"(`
@@ -226,21 +217,24 @@ func qq() error {
 		}
 		_, err = db.Exec(s + d)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		qrows, err := db.Query(*query)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer qrows.Close()
 
 		cols, err := qrows.Columns()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		rows = [][]string{}
+		if *outheader {
+			rows = append(rows, cols)
+		}
 
 		values := make([]interface{}, len(cols))
 		ptrs := make([]interface{}, len(cols))
@@ -250,7 +244,7 @@ func qq() error {
 		for qrows.Next() {
 			err = qrows.Scan(ptrs...)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			cells := []string{}
@@ -268,13 +262,29 @@ func qq() error {
 		}
 	}
 
-	return csv.NewWriter(os.Stdout).WriteAll(rows)
+	return rows, nil
 }
 
 func main() {
 	flag.Parse()
 
-	if err := qq(); err != nil {
+	var stdin io.Reader = os.Stdin
+	if *enc != "" {
+		ee := encoding.GetEncoding(*enc)
+		if ee == nil {
+			fmt.Fprintln(os.Stderr, "invalid encoding name:", *enc)
+			os.Exit(1)
+		}
+		stdin = ee.NewDecoder().Reader(stdin)
+	}
+
+	rows, err := qq(stdin)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	err = csv.NewWriter(os.Stdout).WriteAll(rows)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
