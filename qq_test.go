@@ -45,6 +45,24 @@ var testcases = []struct {
 			[]string{"______f1", "command"}, {"1", "ls"},
 		},
 	},
+	{
+		input: []string{
+			" 1 ",
+			"  ",
+		},
+		output: [][]string{
+			[]string{"1"}, {""},
+		},
+	},
+	{
+		input: []string{
+			"   ",
+			" 1 ",
+		},
+		output: [][]string{
+			[]string{"______f1"}, {"1"},
+		},
+	},
 }
 
 func TestLines2Rows(t *testing.T) {

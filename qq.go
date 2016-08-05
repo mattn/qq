@@ -77,8 +77,11 @@ skip_white:
 
 		if last {
 			for ri := range rows {
-				lr := []rune(lines[ri])
-				rows[ri] = append(rows[ri], strings.TrimSpace(string(lr[li:])))
+				fv := strings.TrimSpace(string(([]rune(lines[ri]))[li:]))
+				if ri == 0 && fv == "" && !*noheader {
+					fv = fmt.Sprintf("______f%d", ri+1)
+				}
+				rows[ri] = append(rows[ri], fv)
 			}
 		} else {
 			part := false
