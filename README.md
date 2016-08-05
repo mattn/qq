@@ -15,6 +15,11 @@ $ ps | qq -q "select pid from stdin"
 13824
 ```
 
+```
+$ ps | qq -q "select command from stdin where pid = 9324"
+/usr/bin/grep
+```
+
 ## Requirements
 
 * go
