@@ -1,5 +1,7 @@
 # qq
 
+[![Build Status](https://travis-ci.org/mattn/qq.svg?branch=master)](https://travis-ci.org/mattn/qq)
+
 Select stdin with query.
 
 ## Usage
