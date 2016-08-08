@@ -187,7 +187,7 @@ func qq(stdin io.Reader) ([][]string, error) {
 			if i > 0 {
 				s += `,`
 			}
-			s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
+			s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
 		}
 		s += `)`
 		_, err = db.Exec(s)
@@ -200,7 +200,7 @@ func qq(stdin io.Reader) ([][]string, error) {
 			if i > 0 {
 				s += `,`
 			}
-			s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
+			s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
 		}
 		s += `) values`
 		d := ``
@@ -222,7 +222,7 @@ func qq(stdin io.Reader) ([][]string, error) {
 				if renum.MatchString(col) {
 					d += col
 				} else {
-					d += `'` + strings.Replace(col, `'`, `\'`, -1) + `'`
+					d += `'` + strings.Replace(col, `'`, `''`, -1) + `'`
 				}
 			}
 			d += `)`
