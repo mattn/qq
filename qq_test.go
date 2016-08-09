@@ -107,6 +107,8 @@ func TestLines2Rows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer qq.Close()
+
 	for _, testcase := range testcases_lines2rows {
 		rows := qq.lines2rows(testcase.input)
 		if !reflect.DeepEqual(rows, testcase.output) {
@@ -120,6 +122,7 @@ func test(r io.Reader, name string, query string, opt *Option) ([][]string, erro
 	if err != nil {
 		return nil, err
 	}
+	defer qq.Close()
 
 	err = qq.Import(r, "stdin")
 	if err != nil {
