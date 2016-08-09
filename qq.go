@@ -195,12 +195,12 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	} else {
 		cn = rows[0]
 	}
-	s := `create table '` + strings.Replace(name, `'`, `\'`, -1) + `'(`
+	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += `,`
 		}
-		s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
+		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
 	}
 	s += `)`
 	_, err = qq.db.Exec(s)
@@ -208,12 +208,12 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		return err
 	}
 
-	s = `insert into '` + strings.Replace(name, `'`, `\'`, -1) + `'(`
+	s = `insert into '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += `,`
 		}
-		s += `'` + strings.Replace(n, `'`, `\'`, -1) + `'`
+		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
 	}
 	s += `) values`
 	d := ``
@@ -235,7 +235,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 			if renum.MatchString(col) {
 				d += col
 			} else {
-				d += `'` + strings.Replace(col, `'`, `\'`, -1) + `'`
+				d += `'` + strings.Replace(col, `'`, `''`, -1) + `'`
 			}
 		}
 		d += `)`

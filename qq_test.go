@@ -134,6 +134,7 @@ func TestQQ(t *testing.T) {
 PID command
   1 /usr/bin/ls
   2 /usr/bin/grep
+  3 /usr/bin/php run.php --opt='1'
 `
 	*query = "select pid from stdin"
 	rows, err := test(strings.NewReader(input), "stdin")
@@ -141,7 +142,7 @@ PID command
 		t.Fatal(err)
 	}
 
-	if len(rows) != 2 {
+	if len(rows) != 3 {
 		t.Fatalf("rows should have two row: got %v", rows)
 	}
 
@@ -157,6 +158,10 @@ PID command
 		t.Fatalf("second result should be 2: got %v", rows[0][0])
 	}
 
+	if rows[2][0] != "3" {
+		t.Fatalf("second result should be 3: got %v", rows[0][0])
+	}
+
 	*query = "select command from stdin where pid = 2"
 	rows, err = test(strings.NewReader(input), "stdin")
 	if err != nil {
@@ -165,6 +170,16 @@ PID command
 
 	if rows[0][0] != "/usr/bin/grep" {
 		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[0][0])
+	}
+
+	*query = "select command from stdin where pid = 3"
+	rows, err = test(strings.NewReader(input), "stdin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rows[0][0] != "/usr/bin/php run.php --opt='1'" {
+		t.Fatalf("result should be '/usr/bin/php run.php --opt='1': got %v", rows[0][0])
 	}
 }
 
