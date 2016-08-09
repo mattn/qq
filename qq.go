@@ -1,39 +1,37 @@
-package main
+package qq
 
 import (
 	"bufio"
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
 
 	xenc "golang.org/x/text/encoding"
 
-	"github.com/mattn/go-encoding"
 	"github.com/mattn/go-runewidth"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var (
-	noheader   = flag.Bool("nh", false, "don't treat first line as header")
-	outheader  = flag.Bool("oh", false, "output header line")
-	inputcsv   = flag.Bool("ic", false, "input csv")
-	inputtsv   = flag.Bool("it", false, "input tsv")
-	inputpat   = flag.String("ip", "", "input delimiter pattern as regexp")
-	outputjson = flag.Bool("oj", false, "output json")
-	outputraw  = flag.Bool("or", false, "output raw")
-	enc        = flag.String("e", "", "encoding of input stream")
-	query      = flag.String("q", "", "select query")
+type QQ struct {
+	db  *sql.DB
+	Opt *Option
+}
 
+type Option struct {
+	NoHeader  bool
+	OutHeader bool
+	InputCSV  bool
+	InputTSV  bool
+	InputPat  string
+	Encoding  xenc.Encoding
+}
+
+var (
 	renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
-	ee    xenc.Encoding
 )
 
 func readLines(r io.Reader) ([]string, error) {
@@ -49,7 +47,7 @@ func readLines(r io.Reader) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func lines2rows(lines []string) [][]string {
+func (qq *QQ) lines2rows(lines []string) [][]string {
 	cr := []rune(lines[0])
 	w := 0
 
@@ -79,7 +77,7 @@ skip_white:
 		if last {
 			for ri := range rows {
 				fv := strings.TrimSpace(string(([]rune(lines[ri]))[li:]))
-				if ri == 0 && fv == "" && !*noheader {
+				if ri == 0 && fv == "" && !qq.Opt.NoHeader {
 					fv = fmt.Sprintf("______f%d", ri+1)
 				}
 				rows[ri] = append(rows[ri], fv)
@@ -101,7 +99,7 @@ skip_white:
 						ib = len(lr) - 1
 					}
 					fv := strings.TrimSpace(string(lr[li:ib]))
-					if ri == 0 && fv == "" && !*noheader {
+					if ri == 0 && fv == "" && !qq.Opt.NoHeader {
 						fv = fmt.Sprintf("______f%d", ri+1)
 					}
 					rows[ri] = append(rows[ri], fv)
@@ -129,39 +127,35 @@ skip_white:
 	return rows
 }
 
-type QQ struct {
-	db *sql.DB
-}
-
-func NewQQ() (*QQ, error) {
+func NewQQ(opt *Option) (*QQ, error) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		return nil, err
 	}
-	return &QQ{db}, nil
+	return &QQ{db, opt}, nil
 }
 
 func (qq *QQ) Import(r io.Reader, name string) error {
 	var rows [][]string
 	var err error
 
-	if ee != nil {
-		r = ee.NewDecoder().Reader(r)
+	if qq.Opt.Encoding != nil {
+		r = qq.Opt.Encoding.NewDecoder().Reader(r)
 	}
 
-	if *inputcsv {
+	if qq.Opt.InputCSV {
 		rows, err = csv.NewReader(r).ReadAll()
 		if err != nil {
 			return err
 		}
-	} else if *inputtsv {
+	} else if qq.Opt.InputTSV {
 		csv := csv.NewReader(r)
 		csv.Comma = '\t'
 		rows, err = csv.ReadAll()
 		if err != nil {
 			return err
 		}
-	} else if *inputpat != "" {
+	} else if qq.Opt.InputPat != "" {
 		lines, err := readLines(r)
 		if err != nil {
 			return err
@@ -169,7 +163,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		if len(lines) == 0 {
 			return nil
 		}
-		re, err := regexp.Compile(*inputpat)
+		re, err := regexp.Compile(qq.Opt.InputPat)
 		if err != nil {
 			return err
 		}
@@ -184,11 +178,11 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		if len(lines) == 0 {
 			return nil
 		}
-		rows = lines2rows(lines)
+		rows = qq.lines2rows(lines)
 	}
 
 	var cn []string
-	if *noheader {
+	if qq.Opt.NoHeader {
 		for i := 0; i < len(rows[0]); i++ {
 			cn = append(cn, fmt.Sprintf(`f%d`, i+1))
 		}
@@ -218,7 +212,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	s += `) values`
 	d := ``
 	for rid, row := range rows {
-		if rid == 0 && !*noheader {
+		if rid == 0 && !qq.Opt.NoHeader {
 			continue
 		}
 		if d != `` {
@@ -263,7 +257,7 @@ func (qq *QQ) Query(query string) ([][]string, error) {
 	}
 
 	rows := [][]string{}
-	if *outheader {
+	if qq.Opt.OutHeader {
 		rows = append(rows, cols)
 	}
 
@@ -297,75 +291,4 @@ func (qq *QQ) Query(query string) ([][]string, error) {
 
 func (qq *QQ) Close() error {
 	return qq.db.Close()
-}
-
-func main() {
-	flag.Parse()
-
-	qq, err := NewQQ()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	if *enc != "" {
-		ee = encoding.GetEncoding(*enc)
-		if ee == nil {
-			fmt.Fprintln(os.Stderr, "invalid encoding name:", *enc)
-			os.Exit(1)
-		}
-	}
-
-	err = qq.Import(os.Stdin, "stdin")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	for _, fn := range flag.Args() {
-		if fn != "-" {
-			fb := filepath.Base(fn)
-			f, err := os.Open(fn)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-			err = qq.Import(f, fb)
-			f.Close()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-		}
-	}
-
-	if *query == "" {
-		*query = "select * from stdin"
-	}
-
-	rows, err := qq.Query(*query)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	if *outputjson {
-		err = json.NewEncoder(os.Stdout).Encode(rows)
-	} else if *outputraw {
-		for _, row := range rows {
-			for c, col := range row {
-				if c > 0 {
-					fmt.Print("\t")
-				}
-				fmt.Print(col)
-			}
-			fmt.Println()
-		}
-	} else {
-		err = csv.NewWriter(os.Stdout).WriteAll(rows)
-	}
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 }

@@ -1,4 +1,4 @@
-package main
+package qq
 
 import (
 	"io"
@@ -103,16 +103,20 @@ var testcases_lines2rows = []struct {
 }
 
 func TestLines2Rows(t *testing.T) {
+	qq, err := NewQQ(&Option{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, testcase := range testcases_lines2rows {
-		rows := lines2rows(testcase.input)
+		rows := qq.lines2rows(testcase.input)
 		if !reflect.DeepEqual(rows, testcase.output) {
 			t.Fatalf("%q should be parsed as %v: got %v", testcase.input, testcase.output, rows)
 		}
 	}
 }
 
-func test(r io.Reader, name string) ([][]string, error) {
-	qq, err := NewQQ()
+func test(r io.Reader, name string, query string, opt *Option) ([][]string, error) {
+	qq, err := NewQQ(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +126,7 @@ func test(r io.Reader, name string) ([][]string, error) {
 		return nil, err
 	}
 
-	rows, err := qq.Query(*query)
+	rows, err := qq.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +140,7 @@ PID command
   2 /usr/bin/grep
   3 /usr/bin/php run.php --opt='1'
 `
-	*query = "select pid from stdin"
-	rows, err := test(strings.NewReader(input), "stdin")
+	rows, err := test(strings.NewReader(input), "stdin", "select pid from stdin", &Option{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,8 +165,7 @@ PID command
 		t.Fatalf("second result should be 3: got %v", rows[0][0])
 	}
 
-	*query = "select command from stdin where pid = 2"
-	rows, err = test(strings.NewReader(input), "stdin")
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 2", &Option{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,8 +174,7 @@ PID command
 		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[0][0])
 	}
 
-	*query = "select command from stdin where pid = 3"
-	rows, err = test(strings.NewReader(input), "stdin")
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 3", &Option{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,11 +190,10 @@ PID,command
 1,/usr/bin/ls
 2,/usr/bin/grep
 `
-	*inputcsv = true
-	*inputtsv = false
-	*inputpat = ""
-	*query = "select pid from stdin"
-	rows, err := test(strings.NewReader(input), "stdin")
+	opt := &Option{
+		InputCSV: true,
+	}
+	rows, err := test(strings.NewReader(input), "stdin", "select pid from stdin", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,8 +214,7 @@ PID,command
 		t.Fatalf("second result should be 2: got %v", rows[0][0])
 	}
 
-	*query = "select command from stdin where pid = 2"
-	rows, err = test(strings.NewReader(input), "stdin")
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 2", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,11 +227,10 @@ PID,command
 func TestInputTSV(t *testing.T) {
 	input := "PID\tcommand\n1\t/usr/bin/ls\n2\t/usr/bin/grep\n"
 
-	*inputcsv = false
-	*inputtsv = true
-	*inputpat = ""
-	*query = "select pid from stdin"
-	rows, err := test(strings.NewReader(input), "stdin")
+	opt := &Option{
+		InputTSV: true,
+	}
+	rows, err := test(strings.NewReader(input), "stdin", "select pid from stdin", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,8 +251,7 @@ func TestInputTSV(t *testing.T) {
 		t.Fatalf("second result should be 2: got %v", rows[0][0])
 	}
 
-	*query = "select command from stdin where pid = 2"
-	rows, err = test(strings.NewReader(input), "stdin")
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 2", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,11 +264,10 @@ func TestInputTSV(t *testing.T) {
 func TestInputPat(t *testing.T) {
 	input := "PID#command\n1#/usr/bin/ls\n2#/usr/bin/grep\n"
 
-	*inputcsv = false
-	*inputtsv = false
-	*inputpat = `#`
-	*query = "select pid from stdin"
-	rows, err := test(strings.NewReader(input), "stdin")
+	opt := &Option{
+		InputPat: `#`,
+	}
+	rows, err := test(strings.NewReader(input), "stdin", "select pid from stdin", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,8 +288,7 @@ func TestInputPat(t *testing.T) {
 		t.Fatalf("second result should be 2: got %v", rows[0][0])
 	}
 
-	*query = "select command from stdin where pid = 2"
-	rows, err = test(strings.NewReader(input), "stdin")
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 2", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
