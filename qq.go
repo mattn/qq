@@ -258,6 +258,9 @@ func (qq *QQ) Query(query string) ([][]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(cols) == 0 {
+		return nil, nil
+	}
 
 	rows := [][]string{}
 	if *outheader {
@@ -299,11 +302,6 @@ func (qq *QQ) Close() error {
 func main() {
 	flag.Parse()
 
-	if *query == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
 	qq, err := NewQQ()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -318,14 +316,14 @@ func main() {
 		}
 	}
 
+	err = qq.Import(os.Stdin, "stdin")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	for _, fn := range flag.Args() {
-		if fn == "-" {
-			err = qq.Import(os.Stdin, "stdin")
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-		} else {
+		if fn != "-" {
 			fb := filepath.Base(fn)
 			f, err := os.Open(fn)
 			if err != nil {
@@ -339,6 +337,10 @@ func main() {
 				os.Exit(1)
 			}
 		}
+	}
+
+	if *query == "" {
+		*query = "select * from stdin"
 	}
 
 	rows, err := qq.Query(*query)
