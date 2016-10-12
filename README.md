@@ -25,9 +25,13 @@ $ ps | qq -q "select command from stdin where pid = 9324"
 * go
 
 ## Installation
-
+Library install
 ```
 $ go get github.com/mattn/qq
+```
+or Command install
+```
+$ go get github.com/mattn/qq/...
 ```
 
 ## License
