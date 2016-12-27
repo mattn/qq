@@ -16,11 +16,17 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	Comma = ","
+)
+
+// QQ is the most basic structure of qq
 type QQ struct {
 	db  *sql.DB
 	Opt *Option
 }
 
+// Option is a structure that qq command can receive
 type Option struct {
 	NoHeader  bool
 	OutHeader bool
@@ -127,6 +133,7 @@ skip_white:
 	return rows
 }
 
+// NewQQ creates new connection to sqlite3
 func NewQQ(opt *Option) (*QQ, error) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -135,6 +142,7 @@ func NewQQ(opt *Option) (*QQ, error) {
 	return &QQ{db, opt}, nil
 }
 
+// Import from csv/tsv files or stdin
 func (qq *QQ) Import(r io.Reader, name string) error {
 	var rows [][]string
 	var err error
@@ -192,7 +200,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
-			s += `,`
+			s += Comma
 		}
 		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
 	}
@@ -205,7 +213,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	s = `insert into '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
-			s += `,`
+			s += Comma
 		}
 		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
 	}
@@ -224,7 +232,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 				break
 			}
 			if i > 0 {
-				d += `,`
+				d += Comma
 			}
 			if renum.MatchString(col) {
 				d += col
@@ -241,6 +249,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	return nil
 }
 
+// Query runs a query and formatize result set
 func (qq *QQ) Query(query string) ([][]string, error) {
 	qrows, err := qq.db.Query(query)
 	if err != nil {
@@ -263,7 +272,7 @@ func (qq *QQ) Query(query string) ([][]string, error) {
 
 	values := make([]interface{}, len(cols))
 	ptrs := make([]interface{}, len(cols))
-	for i, _ := range cols {
+	for i := range cols {
 		ptrs[i] = &values[i]
 	}
 	for qrows.Next() {
@@ -289,6 +298,7 @@ func (qq *QQ) Query(query string) ([][]string, error) {
 	return rows, nil
 }
 
+// Close database connection
 func (qq *QQ) Close() error {
 	return qq.db.Close()
 }

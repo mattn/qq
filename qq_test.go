@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var testcases_readlines = []struct {
+var testcasesReadlines = []struct {
 	input  string
 	output []string
 }{
@@ -22,7 +22,7 @@ var testcases_readlines = []struct {
 }
 
 func TestReadLines(t *testing.T) {
-	for _, testcase := range testcases_readlines {
+	for _, testcase := range testcasesReadlines {
 		lines, err := readLines(strings.NewReader(testcase.input))
 		if err != nil {
 			t.Fatal(err)
@@ -33,7 +33,7 @@ func TestReadLines(t *testing.T) {
 	}
 }
 
-var testcases_lines2rows = []struct {
+var testcasesLines2rows = []struct {
 	input  []string
 	output [][]string
 }{
@@ -109,7 +109,7 @@ func TestLines2Rows(t *testing.T) {
 	}
 	defer qq.Close()
 
-	for _, testcase := range testcases_lines2rows {
+	for _, testcase := range testcasesLines2rows {
 		rows := qq.lines2rows(testcase.input)
 		if !reflect.DeepEqual(rows, testcase.output) {
 			t.Fatalf("%q should be parsed as %v: got %v", testcase.input, testcase.output, rows)
