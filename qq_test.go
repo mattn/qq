@@ -340,3 +340,52 @@ func TestNoHeader(t *testing.T) {
 		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[0][0])
 	}
 }
+
+func TestOutHeader(t *testing.T) {
+
+	input := `
+PID    command
+1    /usr/bin/ls
+2    /usr/bin/grep
+`
+	opt := &Option{
+		OutHeader: true,
+	}
+	rows, err := test(strings.NewReader(input), "stdin", "select pid from stdin", opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rows) != 3 {
+		t.Fatalf("rows should have three row: got %v", rows)
+	}
+
+	if len(rows[0]) != 1 {
+		t.Fatalf("columns should have only one: got %v", rows[0])
+	}
+
+	if rows[0][0] != "PID" {
+		t.Fatalf("first result should be 'PID': got %v", rows[0][0])
+	}
+
+	if rows[1][0] != "1" {
+		t.Fatalf("first result should be 1: got %v", rows[1][0])
+	}
+
+	if rows[2][0] != "2" {
+		t.Fatalf("second result should be 2: got %v", rows[2][0])
+	}
+
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 2", opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rows[0][0] != "command" {
+		t.Fatalf("result should be 'command': got %v", rows[0][0])
+	}
+
+	if rows[1][0] != "/usr/bin/grep" {
+		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[1][0])
+	}
+}
