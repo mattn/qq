@@ -301,7 +301,7 @@ func TestInputPat(t *testing.T) {
 	}
 }
 
-func TestInputNoHeader(t *testing.T) {
+func TestNoHeader(t *testing.T) {
 
 	input := `
 1    /usr/bin/ls
