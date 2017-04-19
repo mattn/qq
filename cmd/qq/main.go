@@ -18,6 +18,7 @@ var (
 	outheader  = flag.Bool("oh", false, "output header line")
 	inputcsv   = flag.Bool("ic", false, "input csv")
 	inputtsv   = flag.Bool("it", false, "input tsv")
+	inputltsv  = flag.Bool("il", false, "input ltsv")
 	inputpat   = flag.String("ip", "", "input delimiter pattern as regexp")
 	outputjson = flag.Bool("oj", false, "output json")
 	outputraw  = flag.Bool("or", false, "output raw")
@@ -42,6 +43,7 @@ func main() {
 		OutHeader: *outheader,
 		InputCSV:  *inputcsv,
 		InputTSV:  *inputtsv,
+		InputLTSV: *inputltsv,
 		InputPat:  *inputpat,
 		Encoding:  ee,
 	})
