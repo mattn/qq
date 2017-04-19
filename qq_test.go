@@ -389,3 +389,41 @@ PID    command
 		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[1][0])
 	}
 }
+
+func TestInputLTSV(t *testing.T) {
+	input := `PID:1	command:/usr/bin/ls
+PID:2	command:/usr/bin/grep
+`
+	opt := &Option{
+		InputLTSV: true,
+	}
+	rows, err := test(strings.NewReader(input), "stdin", "select pid from stdin", opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rows) != 2 {
+		t.Fatalf("rows should have two row: got %v", rows)
+	}
+
+	if len(rows[0]) != 1 {
+		t.Fatalf("columns should have only one: got %v", rows[0])
+	}
+
+	if rows[0][0] != "1" {
+		t.Fatalf("first result should be 1: got %v", rows[0][0])
+	}
+
+	if rows[1][0] != "2" {
+		t.Fatalf("second result should be 2: got %v", rows[0][0])
+	}
+
+	rows, err = test(strings.NewReader(input), "stdin", "select command from stdin where pid = 2", opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if rows[0][0] != "/usr/bin/grep" {
+		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[0][0])
+	}
+}
