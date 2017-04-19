@@ -14,6 +14,7 @@ import (
 
 	"github.com/mattn/go-runewidth"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/najeira/ltsv"
 )
 
 const (
@@ -32,6 +33,7 @@ type Option struct {
 	OutHeader bool
 	InputCSV  bool
 	InputTSV  bool
+	InputLTSV bool
 	InputPat  string
 	Encoding  xenc.Encoding
 }
@@ -151,6 +153,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		r = qq.Opt.Encoding.NewDecoder().Reader(r)
 	}
 
+	var cn []string
 	if qq.Opt.InputCSV {
 		rows, err = csv.NewReader(r).ReadAll()
 		if err != nil {
@@ -162,6 +165,27 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		rows, err = csv.ReadAll()
 		if err != nil {
 			return err
+		}
+	} else if qq.Opt.InputLTSV {
+		rawRows, err := ltsv.NewReader(r).ReadAll()
+		if err != nil {
+			return err
+		}
+		keys := make(map[string]struct{})
+		for _, rowMap := range rawRows {
+			for k := range rowMap {
+				keys[k] = struct{}{}
+			}
+		}
+		for k := range keys {
+			cn = append(cn, k)
+		}
+		for _, rowMap := range rawRows {
+			row := make([]string, len(cn))
+			for i, v := range cn {
+				row[i] = rowMap[v]
+			}
+			rows = append(rows, row)
 		}
 	} else if qq.Opt.InputPat != "" {
 		lines, err := readLines(r)
@@ -189,13 +213,14 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		rows = qq.lines2rows(lines)
 	}
 
-	var cn []string
-	if qq.Opt.NoHeader {
-		for i := 0; i < len(rows[0]); i++ {
-			cn = append(cn, fmt.Sprintf(`f%d`, i+1))
+	if !qq.Opt.InputLTSV {
+		if qq.Opt.NoHeader {
+			for i := 0; i < len(rows[0]); i++ {
+				cn = append(cn, fmt.Sprintf(`f%d`, i+1))
+			}
+		} else {
+			cn = rows[0]
 		}
-	} else {
-		cn = rows[0]
 	}
 	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
@@ -220,7 +245,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	s += `) values`
 	d := ``
 	for rid, row := range rows {
-		if rid == 0 && !qq.Opt.NoHeader {
+		if rid == 0 && !qq.Opt.NoHeader && !qq.Opt.InputLTSV {
 			continue
 		}
 		if d != `` {
