@@ -160,32 +160,26 @@ func newColumn(name string) *column {
 	}
 }
 
-// Import from csv/tsv files or stdin
-func (qq *QQ) Import(r io.Reader, name string) error {
-	var rows [][]string
-	var err error
-
+func (qq *QQ) columnsAndRows(r io.Reader) (cn []*column, rows [][]string, err error) {
 	if qq.Opt.Encoding != nil {
 		r = qq.Opt.Encoding.NewDecoder().Reader(r)
 	}
-
-	var cn []*column
 	if qq.Opt.InputCSV {
 		rows, err = csv.NewReader(r).ReadAll()
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	} else if qq.Opt.InputTSV {
 		csv := csv.NewReader(r)
 		csv.Comma = '\t'
 		rows, err = csv.ReadAll()
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	} else if qq.Opt.InputLTSV {
 		rawRows, err := ltsv.NewReader(r).ReadAll()
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		keys := make(map[string]struct{})
 		for _, rowMap := range rawRows {
@@ -206,14 +200,14 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	} else if qq.Opt.InputPat != "" {
 		lines, err := readLines(r)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if len(lines) == 0 {
-			return nil
+			return nil, nil, nil
 		}
 		re, err := regexp.Compile(qq.Opt.InputPat)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		for _, line := range lines {
 			rows = append(rows, re.Split(line, -1))
@@ -221,10 +215,10 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	} else {
 		lines, err := readLines(r)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if len(lines) == 0 {
-			return nil
+			return nil, nil, nil
 		}
 		rows = qq.lines2rows(lines)
 	}
@@ -261,7 +255,15 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 			}
 		}
 	}
+	return cn, rows, nil
+}
 
+// Import from csv/tsv files or stdin
+func (qq *QQ) Import(r io.Reader, name string) error {
+	cn, rows, err := qq.columnsAndRows(r)
+	if err != nil || len(rows) == 0 {
+		return err
+	}
 	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
