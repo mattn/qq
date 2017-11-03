@@ -144,6 +144,18 @@ func NewQQ(opt *Option) (*QQ, error) {
 	return &QQ{db, opt}, nil
 }
 
+type column struct {
+	Name string
+	Type string
+}
+
+func newColumn(name string) *column {
+	return &column{
+		Name: name,
+		Type: "INTEGER",
+	}
+}
+
 // Import from csv/tsv files or stdin
 func (qq *QQ) Import(r io.Reader, name string) error {
 	var rows [][]string
@@ -153,7 +165,7 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		r = qq.Opt.Encoding.NewDecoder().Reader(r)
 	}
 
-	var cn []string
+	var cn []*column
 	if qq.Opt.InputCSV {
 		rows, err = csv.NewReader(r).ReadAll()
 		if err != nil {
@@ -178,12 +190,12 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 			}
 		}
 		for k := range keys {
-			cn = append(cn, k)
+			cn = append(cn, newColumn(k))
 		}
 		for _, rowMap := range rawRows {
 			row := make([]string, len(cn))
 			for i, v := range cn {
-				row[i] = rowMap[v]
+				row[i] = rowMap[v.Name]
 			}
 			rows = append(rows, row)
 		}
@@ -216,18 +228,24 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	if !qq.Opt.InputLTSV {
 		if qq.Opt.NoHeader {
 			for i := 0; i < len(rows[0]); i++ {
-				cn = append(cn, fmt.Sprintf(`f%d`, i+1))
+				cn = append(cn, newColumn(fmt.Sprintf(`f%d`, i+1)))
 			}
 		} else {
-			cn = rows[0]
+			for _, v := range rows[0] {
+				cn = append(cn, newColumn(v))
+			}
 		}
 	}
+	if !qq.Opt.NoHeader && !qq.Opt.InputLTSV {
+		rows = rows[1:]
+	}
+
 	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += Comma
 		}
-		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
+		s += `'` + strings.Replace(n.Name, `'`, `''`, -1) + `'`
 	}
 	s += `)`
 	_, err = qq.db.Exec(s)
@@ -240,14 +258,11 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		if i > 0 {
 			s += Comma
 		}
-		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
+		s += `'` + strings.Replace(n.Name, `'`, `''`, -1) + `'`
 	}
 	s += `) values`
 	d := ``
-	for rid, row := range rows {
-		if rid == 0 && !qq.Opt.NoHeader && !qq.Opt.InputLTSV {
-			continue
-		}
+	for _, row := range rows {
 		if d != `` {
 			d += `,`
 		}
