@@ -38,9 +38,7 @@ type Option struct {
 	Encoding  xenc.Encoding
 }
 
-var (
-	renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
-)
+var renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
 
 func readLines(r io.Reader) ([]string, error) {
 	var lines []string
@@ -144,6 +142,12 @@ func NewQQ(opt *Option) (*QQ, error) {
 	return &QQ{db, opt}, nil
 }
 
+const (
+	sqliteINTEGER = "INTEGER"
+	sqliteTEXT    = "TEXT"
+	sqliteREAL    = "REAL"
+)
+
 type column struct {
 	Name string
 	Type string
@@ -152,7 +156,7 @@ type column struct {
 func newColumn(name string) *column {
 	return &column{
 		Name: name,
-		Type: "INTEGER",
+		Type: sqliteINTEGER,
 	}
 }
 
@@ -245,15 +249,15 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 				continue
 			}
 			colDef := cn[i]
-			if colDef.Type == "TEXT" {
+			if colDef.Type == sqliteTEXT {
 				continue
 			}
 			if matches := renum.FindStringSubmatch(col); len(matches) > 0 {
 				if matches[1] != "" || matches[2] != "" {
-					colDef.Type = "REAL"
+					colDef.Type = sqliteREAL
 				}
 			} else {
-				colDef.Type = "TEXT"
+				colDef.Type = sqliteTEXT
 			}
 		}
 	}
