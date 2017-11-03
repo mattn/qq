@@ -239,13 +239,31 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	if !qq.Opt.NoHeader && !qq.Opt.InputLTSV {
 		rows = rows[1:]
 	}
+	for _, row := range rows {
+		for i, col := range row {
+			if col == "" {
+				continue
+			}
+			colDef := cn[i]
+			if colDef.Type == "TEXT" {
+				continue
+			}
+			if matches := renum.FindStringSubmatch(col); len(matches) > 0 {
+				if matches[1] != "" || matches[2] != "" {
+					colDef.Type = "REAL"
+				}
+			} else {
+				colDef.Type = "TEXT"
+			}
+		}
+	}
 
 	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += Comma
 		}
-		s += `'` + strings.Replace(n.Name, `'`, `''`, -1) + `'`
+		s += fmt.Sprintf(`'%s' %s`, strings.Replace(n.Name, `'`, `''`, -1), n.Type)
 	}
 	s += `)`
 	_, err = qq.db.Exec(s)
