@@ -427,3 +427,35 @@ PID:2	command:/usr/bin/grep
 		t.Fatalf("result should be '/usr/bin/grep': got %v", rows[0][0])
 	}
 }
+
+func TestColumsAndRows(t *testing.T) {
+	input := `
+int_key text_key      real_key
+1       1             15
+2       /usr/bin/grep 1.04
+2       10            300065
+`
+	qq, _ := NewQQ(&Option{})
+	cn, _, _ := qq.columnsAndRows(strings.NewReader(input))
+	out := make([]column, len(cn))
+	for i, c := range cn {
+		out[i] = *c
+	}
+	expect := []column{
+		{
+			Name: "int_key",
+			Type: sqliteINTEGER,
+		},
+		{
+			Name: "text_key",
+			Type: sqliteTEXT,
+		},
+		{
+			Name: "real_key",
+			Type: sqliteREAL,
+		},
+	}
+	if !reflect.DeepEqual(out, expect) {
+		t.Errorf("\n out =%+v\n want=%+v", out, expect)
+	}
+}
