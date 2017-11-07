@@ -38,9 +38,7 @@ type Option struct {
 	Encoding  xenc.Encoding
 }
 
-var (
-	renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
-)
+var renum = regexp.MustCompile(`^[+-]?[1-9][0-9]*(\.[0-9]+)?(e-?[0-9]+)?$`)
 
 func readLines(r io.Reader) ([]string, error) {
 	var lines []string
@@ -144,32 +142,44 @@ func NewQQ(opt *Option) (*QQ, error) {
 	return &QQ{db, opt}, nil
 }
 
-// Import from csv/tsv files or stdin
-func (qq *QQ) Import(r io.Reader, name string) error {
-	var rows [][]string
-	var err error
+const (
+	sqliteINTEGER = "INTEGER"
+	sqliteTEXT    = "TEXT"
+	sqliteREAL    = "REAL"
+)
 
+type column struct {
+	Name string
+	Type string
+}
+
+func newColumn(name string) *column {
+	return &column{
+		Name: name,
+		Type: sqliteINTEGER,
+	}
+}
+
+func (qq *QQ) columnsAndRows(r io.Reader) (cn []*column, rows [][]string, err error) {
 	if qq.Opt.Encoding != nil {
 		r = qq.Opt.Encoding.NewDecoder().Reader(r)
 	}
-
-	var cn []string
 	if qq.Opt.InputCSV {
 		rows, err = csv.NewReader(r).ReadAll()
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	} else if qq.Opt.InputTSV {
 		csv := csv.NewReader(r)
 		csv.Comma = '\t'
 		rows, err = csv.ReadAll()
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	} else if qq.Opt.InputLTSV {
 		rawRows, err := ltsv.NewReader(r).ReadAll()
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		keys := make(map[string]struct{})
 		for _, rowMap := range rawRows {
@@ -178,26 +188,26 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 			}
 		}
 		for k := range keys {
-			cn = append(cn, k)
+			cn = append(cn, newColumn(k))
 		}
 		for _, rowMap := range rawRows {
 			row := make([]string, len(cn))
 			for i, v := range cn {
-				row[i] = rowMap[v]
+				row[i] = rowMap[v.Name]
 			}
 			rows = append(rows, row)
 		}
 	} else if qq.Opt.InputPat != "" {
 		lines, err := readLines(r)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if len(lines) == 0 {
-			return nil
+			return nil, nil, nil
 		}
 		re, err := regexp.Compile(qq.Opt.InputPat)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		for _, line := range lines {
 			rows = append(rows, re.Split(line, -1))
@@ -205,10 +215,10 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	} else {
 		lines, err := readLines(r)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if len(lines) == 0 {
-			return nil
+			return nil, nil, nil
 		}
 		rows = qq.lines2rows(lines)
 	}
@@ -216,18 +226,50 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 	if !qq.Opt.InputLTSV {
 		if qq.Opt.NoHeader {
 			for i := 0; i < len(rows[0]); i++ {
-				cn = append(cn, fmt.Sprintf(`f%d`, i+1))
+				cn = append(cn, newColumn(fmt.Sprintf(`f%d`, i+1)))
 			}
 		} else {
-			cn = rows[0]
+			for _, v := range rows[0] {
+				cn = append(cn, newColumn(v))
+			}
 		}
+	}
+	if !qq.Opt.NoHeader && !qq.Opt.InputLTSV {
+		rows = rows[1:]
+	}
+	for _, row := range rows {
+		for i, col := range row {
+			if col == "" {
+				continue
+			}
+			colDef := cn[i]
+			if colDef.Type == sqliteTEXT {
+				continue
+			}
+			if matches := renum.FindStringSubmatch(col); len(matches) > 0 {
+				if matches[1] != "" || matches[2] != "" {
+					colDef.Type = sqliteREAL
+				}
+			} else {
+				colDef.Type = sqliteTEXT
+			}
+		}
+	}
+	return cn, rows, nil
+}
+
+// Import from csv/tsv files or stdin
+func (qq *QQ) Import(r io.Reader, name string) error {
+	cn, rows, err := qq.columnsAndRows(r)
+	if err != nil || len(rows) == 0 {
+		return err
 	}
 	s := `create table '` + strings.Replace(name, `'`, `''`, -1) + `'(`
 	for i, n := range cn {
 		if i > 0 {
 			s += Comma
 		}
-		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
+		s += fmt.Sprintf(`'%s' %s`, strings.Replace(n.Name, `'`, `''`, -1), n.Type)
 	}
 	s += `)`
 	_, err = qq.db.Exec(s)
@@ -240,14 +282,11 @@ func (qq *QQ) Import(r io.Reader, name string) error {
 		if i > 0 {
 			s += Comma
 		}
-		s += `'` + strings.Replace(n, `'`, `''`, -1) + `'`
+		s += `'` + strings.Replace(n.Name, `'`, `''`, -1) + `'`
 	}
 	s += `) values`
 	d := ``
-	for rid, row := range rows {
-		if rid == 0 && !qq.Opt.NoHeader && !qq.Opt.InputLTSV {
-			continue
-		}
+	for _, row := range rows {
 		if d != `` {
 			d += `,`
 		}
