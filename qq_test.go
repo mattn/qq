@@ -43,7 +43,7 @@ var testcasesLines2rows = []struct {
 			"   1   ls       ",
 		},
 		output: [][]string{
-			[]string{"PID", "command"}, {"1", "ls"},
+			{"PID", "command"}, {"1", "ls"},
 		},
 	},
 	{
@@ -52,7 +52,7 @@ var testcasesLines2rows = []struct {
 			"     1   ls     ",
 		},
 		output: [][]string{
-			[]string{"PID command"}, {"1   ls"},
+			{"PID command"}, {"1   ls"},
 		},
 	},
 	{
@@ -61,7 +61,7 @@ var testcasesLines2rows = []struct {
 			"      1   ls    ",
 		},
 		output: [][]string{
-			[]string{"PID", "command"}, {"", "1   ls"},
+			{"PID", "command"}, {"", "1   ls"},
 		},
 	},
 	{
@@ -70,7 +70,7 @@ var testcasesLines2rows = []struct {
 			"    1   ls      ",
 		},
 		output: [][]string{
-			[]string{"______f1", "command"}, {"1", "ls"},
+			{"______f1", "command"}, {"1", "ls"},
 		},
 	},
 	{
@@ -79,7 +79,7 @@ var testcasesLines2rows = []struct {
 			"  ",
 		},
 		output: [][]string{
-			[]string{"1"}, {""},
+			{"1"}, {""},
 		},
 	},
 	{
@@ -88,7 +88,7 @@ var testcasesLines2rows = []struct {
 			" 1 ",
 		},
 		output: [][]string{
-			[]string{"______f1"}, {"1"},
+			{"______f1"}, {"1"},
 		},
 	},
 	{
@@ -97,7 +97,7 @@ var testcasesLines2rows = []struct {
 			"1 ",
 		},
 		output: [][]string{
-			[]string{"a", "b"}, {"1", ""},
+			{"a", "b"}, {"1", ""},
 		},
 	},
 }
