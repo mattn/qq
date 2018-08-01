@@ -149,7 +149,7 @@ PID command
 	}
 
 	if len(rows) != 3 {
-		t.Fatalf("rows should have two row: got %v", rows)
+		t.Fatalf("rows should have three row: got %v", rows)
 	}
 
 	if len(rows[0]) != 1 {
