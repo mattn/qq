@@ -124,7 +124,7 @@ func test(r io.Reader, name string, query string, opt *Option) ([][]string, erro
 	}
 	defer qq.Close()
 
-	err = qq.Import(r, "stdin")
+	err = qq.Import(r, name)
 	if err != nil {
 		return nil, err
 	}
